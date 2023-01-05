@@ -1,11 +1,33 @@
-# Load packages and libraries
+#' This is the main script to reproduce the results from the COA paper and its
+#' appendices. Run the script from top to bottom to reproduce all results. 
+#' Code for specific tables and figures in the paper can be found by searching 
+#' the comments in this script (e.g., look for "Table 2" or "Figure 6").
+#'
+#' This script may be modified in future to improve readibility and 
+#' organization -- care will be taken to ensure outputs do not change. 
+#' Please see CHANGELOG file for update history.
+
+#' Load packages and libraries (uncomment and run the first time)
 # install.packages("seminr")
 # install.packages("rpart")
 # install.packages("gesca")
 # install.packages("fancyRpartPlot")
 # install.packages("party")
 # install.packages("tree")
+
+#' SEMCOA Package installation
+#' 
+#' The COA framework code is packaged separately so it can be used for 
+#' reproducibility or reuse.
+#'
+#' Reproducing MS Paper Results: install version of COA framework code from 
+#' `ms-coa-paper` branch of SEMCOA repo (uncomment and run)
 # devtools::install_github("https://github.com/sem-in-r/semcoa", ref = "ms-coa-paper", force = TRUE)
+
+#' Reusing COA framework: See SEMCOA package website for general installation 
+#' instructions for reuse on new models or data: https://github.com/sem-in-r/semcoa
+
+#' Load required libraries
 library(party)
 library(tree)
 library(rpart)
@@ -13,10 +35,10 @@ library(seminr)
 library(semcoa)
 library(gesca)
 
-# Load the project data ----
+# Load the survey data used in the empirical demonstration ----
 utaut_216 <- read.csv(file = "utaut2_216.csv")
 
-# Structural Model ----
+# Structural Model for UTAUT demonstration ----
 structural_model <- relationships(
   paths(from = c("PE","EE","SI","FC","HM","PV","HAB","Exp","Age","Gender"), to = "BI")
 )
@@ -47,7 +69,7 @@ pls_summary <- summary(pls_model)
 pls_bootstrap <- bootstrap_model(pls_model, nboot = 2000, seed = 1234)
 pls_boot_summary <- summary(pls_bootstrap, alpha = 0.01)
 
-# Output for figure 6 ----
+# Output for Figure 6 ----
 pls_boot_summary$bootstrapped_paths
 
 # Conduct the coa framework analysis
@@ -60,7 +82,7 @@ plot_pd(coa_output)
 names(coa_output$dtree$deviant_groups)
 coa_output$dtree$deviant_groups
 
-# output for figure 8 and Table 1 ----
+# output for Figure 8 and Table 1 ----
 # group A
 group_rules("A", coa_output$dtree)
 # group B
@@ -243,7 +265,7 @@ round(matrix(c(coa_output$pls_model$path_coef[1:10,11],
   GSCA_no27_37_180[-8],
   -coa_output$unstable$group_diffs$C$param_diffs$path_coef[1:10,11] - GSCA_no27_37_180[-8]), ncol = 12, dimnames = list(c("PE", "EE", "SI", "FC", "HM", "PV", "Hab", "Exp", "Age", "Gender"), c("Orig PLS", "Orig GSCA", "Orig PLS - GSCA", "A: PLS", "A: GSCA", "A: PLS - GSCA","B: PLS", "B: GSCA", "B: PLS - GSCA","E: PLS", "E: GSCA", "E: PLS - GSCA" ))),3)
   
-# code for figure D1 ----
+# code for Figure D1 ----
 # You can bypass the commented out code below and load the simulation results:
 load(file = "returnlist2_11082021.rda")
 # orig_cases <- 1:216
@@ -308,7 +330,7 @@ deviant_all <- (1:nrow(utaut_216))[coa_output$predictions$PD > quantile(coa_outp
 # }
 
 col_vec <- (as.numeric(names(table(bootstrap_results2)) %in% deviant_all)*0.7) +0.3
-# figure D1 ----
+# Figure D1 ----
 barplot(table(bootstrap_results2[1:12,1:500]), col= col_vec, ylim = c(0,500))
 
 # Table D1 and D2 are derived from the return_list2 object
