@@ -10,7 +10,7 @@
 #' Load packages and libraries (uncomment and run the first time)
 # install.packages("seminr")
 # install.packages("rpart")
-# install.packages("fancyRpartPlot")
+# install.packages("rpart.plot")
 # install.packages("party")
 # install.packages("tree")
 # install.packages("devtools")
@@ -35,6 +35,7 @@ library(rpart)
 library(seminr)
 library(semcoa)
 library(gesca)
+library(rpart.plot)
 
 # Load the survey data used in the empirical demonstration ----
 utaut_216 <- read.csv(file = "utaut2_216.csv")
@@ -222,8 +223,9 @@ GSCA_tree <- rpart(PD ~ .,
                    minbucket = 1, cp = 0.001)
 # Table C2 can be derived from the following plots
 # Table C2 ----
-fancyRpartPlot(GSCA_tree)
-fancyRpartPlot(coa_output$deviance_tree)
+
+rpart.plot(GSCA_tree, type = 2)
+rpart.plot(coa_output$dtree$tree , type =2 )
 
 # Compare nodes to PLS ----
 quant <- quantile(GSCA_PD, probs = c(0.025,0.975))
@@ -464,11 +466,11 @@ round(matrix(c(all_deviants,
   utaut_overfit_no_age$predictions$PD[all_deviants],
   coa_output$predictions$PD[all_deviants] -  utaut_overfit_no_age$predictions$PD[all_deviants]), ncol = 8, dimnames = list(all_deviants, c("Case","Orig PLS", "Excl gender", "Diff","Excl Exp", "Diff","Excl Age", "Diff"))),3)
 
-# Table E2 can be dervied from the following plots:
-fancyRpartPlot(coa_output$deviance_tree)
-fancyRpartPlot(utaut_overfit_no_gender$deviance_tree)
-fancyRpartPlot(utaut_overfit_no_exp$deviance_tree)
-fancyRpartPlot(utaut_overfit_no_age$deviance_tree)
+# Table E2 can be derived from the following plots:
+rpart.plot(coa_output$dtree$tree)
+rpart.plot(utaut_overfit_no_gender$dtree$tree)
+rpart.plot(utaut_overfit_no_exp$dtree$tree)
+rpart.plot(utaut_overfit_no_age$dtree$tree)
 
 # Table F1 ----
 PD <- coa_output$predictions$PD
@@ -484,142 +486,76 @@ partytree <- ctree(
   data = cs_data,
   controls = ctreecontrol
 )
-plot(partytree)
-partytree@where
-partytree@tree
 
 # rpart comparative tree
 rparttree <- coa(pls_model = pls_model, focal_construct = "BI")
-fancyRpartPlot(rparttree$deviance_tree)
+rpart.plot(rparttree$dtree$tree)
 rparttree$deviance_tree
-
 
 # tree comparative tree
 treecontrol <- tree.control(216, mincut = 1, minsize = 2, mindev = 0)
 treetree <- tree(PD ~ ., data = cs_data, control = treecontrol, split = "gini")
-treetree$frame[287,1:2] 
 plot(treetree, type = "uniform")
-cutoff <- quantile(PD, probs = c(0.025, 0.975))
-treetree$frame[treetree$frame[,"yval"] < cutoff[[1]] | treetree$frame[,"yval"] > cutoff[[2]],]
-treetree$frame[treetree$frame[,"yval"] < cutoff[[1]] | treetree$frame[,"yval"] > cutoff[[2]],]
-treetreeframe <- cbind(treetree$frame, 1:nrow(treetree$frame))
-whichcase <- function(node) {(1:216)[treetree$where == treetreeframe[rownames(treetreeframe) == node,6]]}
-whichcase(117)
-whichrule <- function(node) {treetreeframe[rownames(treetreeframe) == node,]}
-whichrule(3)
 
-# Compare deviant clusters ----
-# 99
-## party
-(1:216)[partytree@get_where() == partytree@get_where()[99]]
-### Cases 99, 106, 166 cluster together in node 19
-# rules:
-# 27
-## party
-(1:216)[partytree@get_where() == partytree@get_where()[32]]
-### Cases 99, 106, 166 cluster together in node 19
-# rules:
-
-# 12
-## party
-(1:216)[partytree@get_where() == partytree@get_where()[12]]
-### Cases 12 and 127 cluster together in node 18
-# rules:
-# BI < 0.372
-# PE > -0.668
-# BI < 0.651
-# HM < 0.591
-# PE < 0.508
-# EE < -2.2
-
-## rpart
-cstreecomp$frame[cstreecomp$where[12],]
-cstreecomp$where == 34
-### Cases 12 and 99 cluster together in node 239
-# SI < 0.037
-# FC < -0.93
-# FC > -2.4
-# PE > -1.1
-# HAB < 1
-# BI < 0.46
-
-#####################################################
-# 187
+# Compare deviant clusters across algorithms----
+# Cluster A
 ## party
 (1:216)[partytree@get_where() == partytree@get_where()[187]]
-### Cases 63 and 187 cluster together in node 45
-# rules:
-# EXP < -1.323
-# HAB > 0.997
-# BI > -0.651
-# PE > -0.668
-# BI < 0.372
-
 ## rpart
-cstreecomp$frame[cstreecomp$where[187],]
-(1:216)[cstreecomp$where == 37]
-### Cases 106 and 187 cluster together in node 31
-# FC < -1.3
-# HAB > 1
-# FC > -2.4
-# BI < -0.46
+rparttree$dtree$deviant_groups[1]$A
+## tree
+treetree$frame[treetree$where[[106]],]
+treetree$frame[treetree$where[[187]],]
+treetree$frame["22",]
+# Cases 106 and 187 belong to leaves 44 and 45 which stem from node 22.
 
-#####################################################
-# 81
+# Cluster B
+## party
+(1:216)[partytree@get_where() == partytree@get_where()[99]]
+## rpart
+rparttree$dtree$deviant_groups[2]$B
+## tree
+treetree$frame[treetree$where[[12]],]
+treetree$frame[treetree$where[[71]],]
+treetree$frame[treetree$where[[99]],]
+treetree$frame["82",]
+# Cases 12, 71, and 99 belong to leaves 330, 164, and 331 which stem from 
+# node 82.
+
+# Cluster C
+## party
+(1:216)[partytree@get_where() == partytree@get_where()[27]]
+## rpart
+rparttree$dtree$deviant_groups[3]$C
+## tree
+treetree$frame[treetree$where[[27]],]
+treetree$frame[treetree$where[[37]],]
+treetree$frame[treetree$where[[180]],]
+treetree$frame["8",]
+# Cases 27, 37, and 180 belong to leaves 17, 33, and 32 which stem from 
+# node 8.
+
+# Cluster D
+## party
+(1:216)[partytree@get_where() == partytree@get_where()[96]]
+## rpart
+rparttree$dtree$deviant_groups[4]$D
+## tree
+treetree$frame[treetree$where[[93]],]
+treetree$frame[treetree$where[[134]],]
+treetree$frame[treetree$where[[151]],]
+treetree$frame["59",]
+# Cases 93, 134, and 151 belong to leaves 118, 238, and 239 which stem from 
+# node 59.
+
+# Cluster E
 ## party
 (1:216)[partytree@get_where() == partytree@get_where()[81]]
-### Cases 81 and 109 cluster together in node 49
-# rules:
-# SI < -1.996
-# BI < 1.572
-# BI > 0.372
-
 ## rpart
-cstreecomp$frame[cstreecomp$where[81],]
-(1:216)[cstreecomp$where == 3]
-### Cases 81 and 109 cluster together in node 4
-# SI < -1.6
-# BI > 0.46
-
-#####################################################
-# 134
-## party
-(1:216)[partytree@get_where() == partytree@get_where()[134]]
-### Cases 93  96 134 151 cluster together in node 68
-# rules:
-# HAB < 0.194
-# BI > 1.572
-# BI > 0.372
-
-## rpart
-cstreecomp$frame[cstreecomp$where[134],]
-(1:216)[cstreecomp$where == 6]
-### Cases 93  96 134 151 cluster together in node 20
-# HAB < -0.22
-# BI > 1.8
-# SI > -1.6
-# BI > 0.46
-
-#####################################################
-# 1
-## party
-(1:216)[partytree@get_where() == partytree@get_where()[1]]
-### Cases  1  31  38  44  72  95 108 145 202 205 cluster together in node 66
-# rules:
-# FC > 0.172
-# SI > 0.7
-# HAB > 0.15
-# SI > -1.996
-# BI < 1.572
-# BI > 0.372
-
-## rpart
-cstreecomp$frame[cstreecomp$where[1],]
-(1:216)[cstreecomp$where == 12]
-### Cases 1   3  10  14  22  25  31  38  41  44  45  47  48  50  57  60  61  64  70  72  77  80
-#        86  90  95  97 103 104 108 118 119 126 131 138 144 145 148 149 150 177 178 179 202 205
-#       207 215 cluster together in node 23
-# HM > -0.11
-# HAB > 0.22
-# SI > -1.66
-# BI > 0.46
+rparttree$dtree$deviant_groups[5]$E
+## tree
+treetree$frame[treetree$where[[81]],]
+treetree$frame[treetree$where[[109]],]
+treetree$frame["6",]
+# Cases 81 and 109 belong to leaves 13 and 12 which stem from 
+# node 6.
