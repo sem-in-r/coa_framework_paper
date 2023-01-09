@@ -10,11 +10,12 @@
 #' Load packages and libraries (uncomment and run the first time)
 # install.packages("seminr")
 # install.packages("rpart")
-# install.packages("gesca")
 # install.packages("fancyRpartPlot")
 # install.packages("party")
 # install.packages("tree")
-
+# install.packages("devtools")
+# devtools::install_github("https://github.com/cran/gesca")
+#
 #' SEMCOA Package installation
 #' 
 #' The COA framework code is packaged separately so it can be used for 
