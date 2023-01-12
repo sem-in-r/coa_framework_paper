@@ -1,0 +1,42 @@
+# This workflow reproduces the full results of the COA paper on Github Actions.
+# It installs all packages and then sources the main script
+# NOTE:
+#   - Github Repo must have GH_PAT (Github personal access token) secret defined
+
+name: Reproducibility
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        r-version: ['4.2.1']
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up R ${{ matrix.r-version }}
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: ${{ matrix.r-version }}
+      - name: Install CRAN packages
+        shell: Rscript {0}
+        run: |
+          install.packages(c("seminr", "rpart", "rpart.plot", "party", "tree"))
+      - name: Install Github packages
+        shell: Rscript {0}
+        env:
+          GITHUB_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          install.packages(c("maptools", "remotes"))
+          install.packages("data.tree")
+          remotes::install_github("https://github.com/sem-in-r/semcoa", ref = "ms-coa-paper", force = TRUE)
+          remotes::install_github("https://github.com/cran/gesca")
+      - name: Run paper results script
+        shell: Rscript {0}
+        run: source("COA_Framework_MS_Paper.R")
