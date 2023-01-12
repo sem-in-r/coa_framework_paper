@@ -1,30 +1,31 @@
 #' This is the main script to reproduce the results from the COA paper and its
-#' appendices. Run the script from top to bottom to reproduce all results. 
-#' Code for specific tables and figures in the paper can be found by searching 
+#' appendices. Run the script from top to bottom to reproduce all results.
+#' Code for specific tables and figures in the paper can be found by searching
 #' the comments in this script (e.g., look for "Table 2" or "Figure 6").
 #'
-#' This script may be modified in future to improve readibility and 
-#' organization -- care will be taken to ensure outputs do not change. 
+#' This script may be modified in future to improve readibility and
+#' organization -- care will be taken to ensure outputs do not change.
 #' Please see CHANGELOG file for update history.
 
 #' Load packages and libraries (uncomment and run the first time)
 # install.packages("seminr")
 # install.packages("rpart")
-# install.packages("gesca")
-# install.packages("fancyRpartPlot")
+# install.packages("rpart.plot")
 # install.packages("party")
 # install.packages("tree")
-
+# install.packages("devtools")
+# devtools::install_github("https://github.com/cran/gesca")
+#
 #' SEMCOA Package installation
-#' 
-#' The COA framework code is packaged separately so it can be used for 
+#'
+#' The COA framework code is packaged separately so it can be used for
 #' reproducibility or reuse.
 #'
-#' Reproducing MS Paper Results: install version of COA framework code from 
+#' Reproducing MS Paper Results: install version of COA framework code from
 #' `ms-coa-paper` branch of SEMCOA repo (uncomment and run)
 # devtools::install_github("https://github.com/sem-in-r/semcoa", ref = "ms-coa-paper", force = TRUE)
 
-#' Reusing COA framework: See SEMCOA package website for general installation 
+#' Reusing COA framework: See SEMCOA package website for general installation
 #' instructions for reuse on new models or data: https://github.com/sem-in-r/semcoa
 
 #' Load required libraries
@@ -34,6 +35,7 @@ library(rpart)
 library(seminr)
 library(semcoa)
 library(gesca)
+library(rpart.plot)
 
 # Load the survey data used in the empirical demonstration ----
 utaut_216 <- read.csv(file = "utaut2_216.csv")
@@ -106,10 +108,10 @@ C <- unstable$group_diffs$C$param_diffs$path_coef[,"BI"]
 D <- unstable$group_diffs$D$param_diffs$path_coef[,"BI"]
 E <- unstable$group_diffs$E$param_diffs$path_coef[,"BI"]
 round((cbind(original,
-             A, (A)/original, 
+             A, (A)/original,
              B, (B)/original,
              C, (C)/original,
-             D, (D)/original,  
+             D, (D)/original,
              E, (E)/original)[1:7,]),3)
 
 # Online Appendices results: ----
@@ -149,7 +151,7 @@ round(cbind(as.numeric(order), predictive_deviance, leverage_x, mahal_y, residua
 # online Appendix Table C1 ----
 
 myModel <- "
-		# Measurement model 
+		# Measurement model
 		PE =~ PE1 + PE2 + PE3 + PE4
 		EE =~ EE1 + EE2 + EE3 + EE4
 		SI =~ SI1 + SI2 + SI3
@@ -161,15 +163,15 @@ myModel <- "
 		Exp =~ experience
 		Age =~ age
 		Gender =~ gender
-		
-		# Structural model 
+
+		# Structural model
 		BI ~ PE + EE + SI + FC + HM + PV + HAB + Exp + Age + Gender
 "
 utaut_GSCA <- gesca.run(myModel, utaut_216)
 summary(utaut_GSCA)
 
 scaled_data <- scale(utaut_216[,-32])
-GSCA_construct_scores <- (scaled_data[,utaut_GSCA$wname] %*% utaut_GSCA$WR) 
+GSCA_construct_scores <- (scaled_data[,utaut_GSCA$wname] %*% utaut_GSCA$WR)
 GSC_actual_star <- GSCA_construct_scores[,8]
 GSCA_fit <- (GSCA_construct_scores %*% t(utaut_GSCA$BR))[,8]
 GSCA_prediction <- c()
@@ -181,7 +183,7 @@ for (i in 1:216) {
   sd_vector <- attr(scaled_data_train, "scaled:scale")
   standard_data <- (utaut_216[i,-32] - means_vector) / sd_vector
   GSCA_prediction[i] <- ((as.matrix(standard_data[,utaut_GSCA_train$wname]) %*% utaut_GSCA_train$WR) %*% t(utaut_GSCA_train$BR))[,8]
-  
+
 }
 
 GSCA_predict_MSE <- mean((GSC_actual_star - GSCA_prediction)^2)
@@ -192,7 +194,7 @@ GSCA_overfit_ratio <- (GSCA_predict_MSE - GSCA_fit_MSE)/GSCA_fit_MSE
 GSCA_PD <- GSCA_fit - GSCA_prediction
 names(GSCA_PD) <- 1:216
 
-PD <- coa_output$predictions$PD 
+PD <- coa_output$predictions$PD
 GSCA_deviants <- (GSCA_PD)[(GSCA_PD > quantile(GSCA_PD, probs = c(0.975))) | (GSCA_PD < quantile(GSCA_PD, probs = c(0.025)))]
 PLS_deviants <- (PD)[(PD > quantile(PD, probs = c(0.975))) | (PD < quantile(PD, probs = c(0.025)))]
 
@@ -200,29 +202,30 @@ PLS_deviants <- (PD)[(PD > quantile(PD, probs = c(0.975))) | (PD < quantile(PD, 
 round(matrix(c(coa_output$predictions$IS_MSE,
 coa_output$predictions$OOS_MSE,
 coa_output$predictions$overfit_ratio,
-GSCA_fit_MSE, 
-GSCA_predict_MSE, 
+GSCA_fit_MSE,
+GSCA_predict_MSE,
 GSCA_overfit_ratio,
 coa_output$predictions$IS_MSE - GSCA_fit_MSE,
 coa_output$predictions$OOS_MSE - GSCA_predict_MSE,
 coa_output$predictions$overfit_ratio - GSCA_overfit_ratio),ncol = 3, dimnames = list(c("MSEin", "MSEout", "overfit ratio"), c("PLS", "GSCA", "PLS - GSCA"))),3)
 
 PD_order <- c(12,32,37,40,81,93,99,106,109,134,151,180,187)
-round(cbind(PD_order, 
+round(cbind(PD_order,
       coa_output$predictions$PD[PD_order],
       GSCA_PD[PD_order],
       coa_output$predictions$PD[PD_order] - GSCA_PD[PD_order]),3)
 
 gsca_comp_data <- as.data.frame(cbind(GSCA_construct_scores, GSCA_PD))
 colnames(gsca_comp_data) <- c(utaut_GSCA$lname, "PD")
-GSCA_tree <- rpart(PD ~ ., 
-                   data = gsca_comp_data, 
-                   minsplit = 2, 
+GSCA_tree <- rpart(PD ~ .,
+                   data = gsca_comp_data,
+                   minsplit = 2,
                    minbucket = 1, cp = 0.001)
 # Table C2 can be derived from the following plots
 # Table C2 ----
-fancyRpartPlot(GSCA_tree)
-fancyRpartPlot(coa_output$deviance_tree)
+
+rpart.plot(GSCA_tree, type = 2)
+rpart.plot(coa_output$dtree$tree , type =2 )
 
 # Compare nodes to PLS ----
 quant <- quantile(GSCA_PD, probs = c(0.025,0.975))
@@ -253,8 +256,8 @@ GSCA_no27_37_180 <- GSCA_param_diffs(c(27, 37, 180), utaut_GSCA, utaut_216)
 # Difference between GSCA LDO and PLS LDO
 # Table C3 ----
 round(matrix(c(coa_output$pls_model$path_coef[1:10,11],
-  utaut_GSCA$BR[8,-8], 
-  -coa_output$pls_model$path_coef[1:10,11] - utaut_GSCA$BR[8,-8], 
+  utaut_GSCA$BR[8,-8],
+  -coa_output$pls_model$path_coef[1:10,11] - utaut_GSCA$BR[8,-8],
   -coa_output$unstable$group_diffs$E$param_diffs$path_coef[1:10,11],
   GSCA_no81_109[-8],
   -coa_output$unstable$group_diffs$E$param_diffs$path_coef[1:10,11] - GSCA_no81_109[-8],
@@ -264,25 +267,25 @@ round(matrix(c(coa_output$pls_model$path_coef[1:10,11],
   -coa_output$unstable$group_diffs$C$param_diffs$path_coef[1:10,11],
   GSCA_no27_37_180[-8],
   -coa_output$unstable$group_diffs$C$param_diffs$path_coef[1:10,11] - GSCA_no27_37_180[-8]), ncol = 12, dimnames = list(c("PE", "EE", "SI", "FC", "HM", "PV", "Hab", "Exp", "Age", "Gender"), c("Orig PLS", "Orig GSCA", "Orig PLS - GSCA", "A: PLS", "A: GSCA", "A: PLS - GSCA","B: PLS", "B: GSCA", "B: PLS - GSCA","E: PLS", "E: GSCA", "E: PLS - GSCA" ))),3)
-  
+
 # code for Figure D1 ----
 # You can bypass the commented out code below and load the simulation results:
 load(file = "returnlist2_11082021.rda")
 # orig_cases <- 1:216
 # utaut_data <- cbind(utaut_216, orig_cases)
-# 
+#
 # utaut_model <- estimate_pls(data = utaut_data,
 #                             measurement_model = measurement_model,
 #                             structural_model = structural_model)
-# 
-# utaut_overfit <- coa(pls_model = utaut_model, 
+#
+# utaut_overfit <- coa(pls_model = utaut_model,
 #                      focal_construct = "BI",
 #                      params = c("path_coef", "outer_weights", "rSquared"))
-# 
-# 
+#
+#
 # # b. Sample size and stability -----
 deviant_all <- (1:nrow(utaut_216))[coa_output$predictions$PD > quantile(coa_output$predictions$PD, probs = coa_output$deviance_bounds)[2] | coa_output$predictions$PD < quantile(coa_output$predictions$PD, probs = coa_output$deviance_bounds)[1]]
-# 
+#
 # ### Downsample ----
 # bootstrap_results2 <- matrix(NA, nrow = 15, ncol = 500)
 # return_list2 <- vector(mode = "list", length = 500)
@@ -290,7 +293,7 @@ deviant_all <- (1:nrow(utaut_216))[coa_output$predictions$PD > quantile(coa_outp
 # utaut_data_no_dev <- utaut_data[-deviant_all,]
 # for (i in 1:500) {
 #   new_sample <- sample(1:nrow(utaut_data_no_dev), (nrow(utaut_data_no_dev) - 11), replace = FALSE)
-#   
+#
 #   # Add the deviants to bootstrapped non-deviants
 #   new_data <- rbind(utaut_data_no_dev[new_sample,], utaut_data[deviant_all,])
 #   # new_data <- utaut_data[new_sample,]
@@ -298,25 +301,25 @@ deviant_all <- (1:nrow(utaut_216))[coa_output$predictions$PD > quantile(coa_outp
 #   utaut_model_resample <- estimate_pls(data = new_data,
 #                                        measurement_model = utaut_mm,
 #                                        structural_model = utaut_sm)
-#   
-#   new_utaut_overfit <- coa(pls_model = utaut_model_resample, 
+#
+#   new_utaut_overfit <- coa(pls_model = utaut_model_resample,
 #                            focal_construct = "BI",
 #                            params = c("path_coef", "outer_weights", "rSquared"))
 #   focal_dev <- (1:nrow(new_data))[new_utaut_overfit$predictions$PD > quantile(new_utaut_overfit$predictions$PD, probs = new_utaut_overfit$deviance_bounds)[2] | new_utaut_overfit$predictions$PD < quantile(new_utaut_overfit$predictions$PD, probs = new_utaut_overfit$deviance_bounds)[1]]
 #   bootstrap_results2[1:length(focal_dev),i] <- new_data[focal_dev, "orig_cases"]
-#   
+#
 #   deviants_in <-  deviant_all %in% new_sample
-#   
-#   new_pd <- new_utaut_overfit$predictions$PD[focal_dev] 
+#
+#   new_pd <- new_utaut_overfit$predictions$PD[focal_dev]
 #   names(new_pd) <- new_data[focal_dev, "orig_cases"]
-#   
+#
 #   groups <- new_utaut_overfit$dtree$deviant_groups
 #   for(int in names(new_utaut_overfit$dtree$deviant_groups)) {
 #     groups[[int]] <- new_data[,"orig_cases"][groups[[int]]]
 #   }
-#   
+#
 #   unique <- new_data[,"orig_cases"][new_utaut_overfit$dtree$unique_deviants]
-#   
+#
 #   return_list2[[i]] <- list(IS_MSE = new_utaut_overfit$predictions$IS_MSE,
 #                             OOS_MSE = new_utaut_overfit$predictions$OOS_MSE,
 #                             overfit_ratio = new_utaut_overfit$predictions$overfit_ratio,
@@ -326,7 +329,7 @@ deviant_all <- (1:nrow(utaut_216))[coa_output$predictions$PD > quantile(coa_outp
 #                             group_differences = new_utaut_overfit$unstable$group_diffs,
 #                             deviant_unique = unique,
 #                             unique_differences = new_utaut_overfit$unstable$unique_diffs,
-#                             new_sample = new_sample) 
+#                             new_sample = new_sample)
 # }
 
 col_vec <- (as.numeric(names(table(bootstrap_results2)) %in% deviant_all)*0.7) +0.3
@@ -347,7 +350,7 @@ utaut_model_no_gender <- estimate_pls(data = utaut_216,
                                 measurement_model = measurement_model,
                                 structural_model = utaut_sm_no_gender)
 
-utaut_overfit_no_gender <- coa(pls_model = utaut_model_no_gender, 
+utaut_overfit_no_gender <- coa(pls_model = utaut_model_no_gender,
                          focal_construct = "BI",
                          params = c("path_coef", "outer_weights", "rSquared"))
 
@@ -379,7 +382,7 @@ utaut_model_no_age <- estimate_pls(data = utaut_216,
                                 measurement_model = measurement_model,
                                 structural_model = utaut_sm_no_age)
 
-utaut_overfit_no_age <- coa(pls_model = utaut_model_no_age, 
+utaut_overfit_no_age <- coa(pls_model = utaut_model_no_age,
                          focal_construct = "BI",
                          params = c("path_coef", "outer_weights", "rSquared"))
 
@@ -410,7 +413,7 @@ utaut_model_no_exp <- estimate_pls(data = utaut_216,
                                 measurement_model = measurement_model,
                                 structural_model = utaut_sm_no_exp)
 
-utaut_overfit_no_exp <- coa(pls_model = utaut_model_no_exp, 
+utaut_overfit_no_exp <- coa(pls_model = utaut_model_no_exp,
                          focal_construct = "BI",
                          params = c("path_coef", "outer_weights", "rSquared"))
 
@@ -454,7 +457,7 @@ round(matrix(c(coa_output$predictions$IS_MSE,
   coa_output$predictions$OOS_MSE - utaut_overfit_no_age$predictions$OOS_MSE,
   coa_output$predictions$overfit_ratio - utaut_overfit_no_age$predictions$overfit_ratio), ncol = 7, dimnames = list(c("MSEin", "MSEout", "overfit ratio"),c("Orig PLS", "Excl Gender", "Orig - Excl Gender", "Excl Exp", "Orig - Excl Exp","Excl Age", "Orig - Excl Age"))),3)
 
-round(matrix(c(all_deviants, 
+round(matrix(c(all_deviants,
   coa_output$predictions$PD[all_deviants],
   utaut_overfit_no_gender$predictions$PD[all_deviants],
   coa_output$predictions$PD[all_deviants] -  utaut_overfit_no_gender$predictions$PD[all_deviants],
@@ -463,11 +466,11 @@ round(matrix(c(all_deviants,
   utaut_overfit_no_age$predictions$PD[all_deviants],
   coa_output$predictions$PD[all_deviants] -  utaut_overfit_no_age$predictions$PD[all_deviants]), ncol = 8, dimnames = list(all_deviants, c("Case","Orig PLS", "Excl gender", "Diff","Excl Exp", "Diff","Excl Age", "Diff"))),3)
 
-# Table E2 can be dervied from the following plots:
-fancyRpartPlot(coa_output$deviance_tree)
-fancyRpartPlot(utaut_overfit_no_gender$deviance_tree)
-fancyRpartPlot(utaut_overfit_no_exp$deviance_tree)
-fancyRpartPlot(utaut_overfit_no_age$deviance_tree)
+# Table E2 can be derived from the following plots:
+rpart.plot(coa_output$dtree$tree)
+rpart.plot(utaut_overfit_no_gender$dtree$tree)
+rpart.plot(utaut_overfit_no_exp$dtree$tree)
+rpart.plot(utaut_overfit_no_age$dtree$tree)
 
 # Table F1 ----
 PD <- coa_output$predictions$PD
@@ -479,146 +482,80 @@ ctreecontrol <- ctree_control(minsplit = 2,
                               mincriterion = 0.5
 )
 partytree <- ctree(
-  PD ~ ., 
+  PD ~ .,
   data = cs_data,
   controls = ctreecontrol
 )
-plot(partytree)
-partytree@where
-partytree@tree
 
 # rpart comparative tree
 rparttree <- coa(pls_model = pls_model, focal_construct = "BI")
-fancyRpartPlot(rparttree$deviance_tree)
+rpart.plot(rparttree$dtree$tree)
 rparttree$deviance_tree
-
 
 # tree comparative tree
 treecontrol <- tree.control(216, mincut = 1, minsize = 2, mindev = 0)
 treetree <- tree(PD ~ ., data = cs_data, control = treecontrol, split = "gini")
-treetree$frame[287,1:2] 
 plot(treetree, type = "uniform")
-cutoff <- quantile(PD, probs = c(0.025, 0.975))
-treetree$frame[treetree$frame[,"yval"] < cutoff[[1]] | treetree$frame[,"yval"] > cutoff[[2]],]
-treetree$frame[treetree$frame[,"yval"] < cutoff[[1]] | treetree$frame[,"yval"] > cutoff[[2]],]
-treetreeframe <- cbind(treetree$frame, 1:nrow(treetree$frame))
-whichcase <- function(node) {(1:216)[treetree$where == treetreeframe[rownames(treetreeframe) == node,6]]}
-whichcase(117)
-whichrule <- function(node) {treetreeframe[rownames(treetreeframe) == node,]}
-whichrule(3)
 
-# Compare deviant clusters ----
-# 99
-## party
-(1:216)[partytree@get_where() == partytree@get_where()[99]]
-### Cases 99, 106, 166 cluster together in node 19
-# rules:
-# 27
-## party
-(1:216)[partytree@get_where() == partytree@get_where()[32]]
-### Cases 99, 106, 166 cluster together in node 19
-# rules:
-
-# 12
-## party
-(1:216)[partytree@get_where() == partytree@get_where()[12]]
-### Cases 12 and 127 cluster together in node 18
-# rules:
-# BI < 0.372
-# PE > -0.668
-# BI < 0.651
-# HM < 0.591
-# PE < 0.508
-# EE < -2.2
-
-## rpart
-cstreecomp$frame[cstreecomp$where[12],]
-cstreecomp$where == 34
-### Cases 12 and 99 cluster together in node 239
-# SI < 0.037
-# FC < -0.93
-# FC > -2.4
-# PE > -1.1
-# HAB < 1
-# BI < 0.46
-
-#####################################################
-# 187
+# Compare deviant clusters across algorithms----
+# Cluster A
 ## party
 (1:216)[partytree@get_where() == partytree@get_where()[187]]
-### Cases 63 and 187 cluster together in node 45
-# rules:
-# EXP < -1.323
-# HAB > 0.997
-# BI > -0.651
-# PE > -0.668
-# BI < 0.372
-
 ## rpart
-cstreecomp$frame[cstreecomp$where[187],]
-(1:216)[cstreecomp$where == 37]
-### Cases 106 and 187 cluster together in node 31
-# FC < -1.3
-# HAB > 1
-# FC > -2.4
-# BI < -0.46
+rparttree$dtree$deviant_groups[1]$A
+## tree
+treetree$frame[treetree$where[[106]],]
+treetree$frame[treetree$where[[187]],]
+treetree$frame["22",]
+# Cases 106 and 187 belong to leaves 44 and 45 which stem from node 22.
 
-#####################################################
-# 81
+# Cluster B
+## party
+(1:216)[partytree@get_where() == partytree@get_where()[99]]
+## rpart
+rparttree$dtree$deviant_groups[2]$B
+## tree
+treetree$frame[treetree$where[[12]],]
+treetree$frame[treetree$where[[71]],]
+treetree$frame[treetree$where[[99]],]
+treetree$frame["82",]
+# Cases 12, 71, and 99 belong to leaves 330, 164, and 331 which stem from
+# node 82.
+
+# Cluster C
+## party
+(1:216)[partytree@get_where() == partytree@get_where()[27]]
+## rpart
+rparttree$dtree$deviant_groups[3]$C
+## tree
+treetree$frame[treetree$where[[27]],]
+treetree$frame[treetree$where[[37]],]
+treetree$frame[treetree$where[[180]],]
+treetree$frame["8",]
+# Cases 27, 37, and 180 belong to leaves 17, 33, and 32 which stem from
+# node 8.
+
+# Cluster D
+## party
+(1:216)[partytree@get_where() == partytree@get_where()[96]]
+## rpart
+rparttree$dtree$deviant_groups[4]$D
+## tree
+treetree$frame[treetree$where[[93]],]
+treetree$frame[treetree$where[[134]],]
+treetree$frame[treetree$where[[151]],]
+treetree$frame["59",]
+# Cases 93, 134, and 151 belong to leaves 118, 238, and 239 which stem from
+# node 59.
+
+# Cluster E
 ## party
 (1:216)[partytree@get_where() == partytree@get_where()[81]]
-### Cases 81 and 109 cluster together in node 49
-# rules:
-# SI < -1.996
-# BI < 1.572
-# BI > 0.372
-
 ## rpart
-cstreecomp$frame[cstreecomp$where[81],]
-(1:216)[cstreecomp$where == 3]
-### Cases 81 and 109 cluster together in node 4
-# SI < -1.6
-# BI > 0.46
-
-#####################################################
-# 134
-## party
-(1:216)[partytree@get_where() == partytree@get_where()[134]]
-### Cases 93  96 134 151 cluster together in node 68
-# rules:
-# HAB < 0.194
-# BI > 1.572
-# BI > 0.372
-
-## rpart
-cstreecomp$frame[cstreecomp$where[134],]
-(1:216)[cstreecomp$where == 6]
-### Cases 93  96 134 151 cluster together in node 20
-# HAB < -0.22
-# BI > 1.8
-# SI > -1.6
-# BI > 0.46
-
-#####################################################
-# 1
-## party
-(1:216)[partytree@get_where() == partytree@get_where()[1]]
-### Cases  1  31  38  44  72  95 108 145 202 205 cluster together in node 66
-# rules:
-# FC > 0.172
-# SI > 0.7
-# HAB > 0.15
-# SI > -1.996
-# BI < 1.572
-# BI > 0.372
-
-## rpart
-cstreecomp$frame[cstreecomp$where[1],]
-(1:216)[cstreecomp$where == 12]
-### Cases 1   3  10  14  22  25  31  38  41  44  45  47  48  50  57  60  61  64  70  72  77  80
-#        86  90  95  97 103 104 108 118 119 126 131 138 144 145 148 149 150 177 178 179 202 205
-#       207 215 cluster together in node 23
-# HM > -0.11
-# HAB > 0.22
-# SI > -1.66
-# BI > 0.46
+rparttree$dtree$deviant_groups[5]$E
+## tree
+treetree$frame[treetree$where[[81]],]
+treetree$frame[treetree$where[[109]],]
+treetree$frame["6",]
+# Cases 81 and 109 belong to leaves 13 and 12 which stem from
+# node 6.
